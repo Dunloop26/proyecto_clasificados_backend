@@ -193,14 +193,23 @@ def get_publicacion():
     def guardar_contenido(contenido: Contenido):
         # Crear conexio
         conexion = crear_conexion()
-        # obtener cursor
-        cursor = conexion.cursor()
-        # Ejecutar el comando hacer INSET a la Db
-        cursor.execute(f'INSERT INTO contenido(tipoinmueble, metroscuadrados, habitaciones, banos, pisos, descripcion) VALUES("{contenido.tipo_inmueble}", "{contenido.metros_cuadrados}", "{contenido.habitaciones}", "{contenido.banos}", "{contenido.pisos}", "{contenido.descripcion}")')
-        # Hacer efecetivo la insercion
-        conexion.commit()
-        # cerrar la conexion
-        conexion.close()
+        try:
+            # obtener cursor
+            cursor = conexion.cursor()
+            # Ejecutar el comando hacer INSET a la Db
+            cursor.execute(f'INSERT INTO contenido(tipoinmueble, metroscuadrados, habitaciones, banos, pisos, descripcion) VALUES("{contenido.tipo_inmueble}", "{contenido.metros_cuadrados}", "{contenido.habitaciones}", "{contenido.banos}", "{contenido.pisos}", "{contenido.descripcion}")')
+            # Hacer efecetivo la insercion
+            conexion.commit()
+
+            # Obtengo el último ID del contenido
+            cursor.execute('SELECT LAST_INSERT_ID()')
+            resultado = cursor.fetchone();
+            
+            # Defino el id del contenido
+            contenido.id = resultado[0];
+        finally:
+            # cerrar la conexion
+            conexion.close()
 
 
 
@@ -222,15 +231,18 @@ def get_publicacion():
     def guardar_publicacion(publicacion: Publicacion):
         # Crear conexion
         conexion = crear_conexion()
-        #  Obtener cursor
-        cursor = conexion.cursor()
-        # Se crea la query
-        query = f'INSERT INTO publicacion(fechainicial, fechfin, ciudad, precio, titulo) VALUES({publicacion.fecha_inicial}, {publicacion.fecha_final}, {publicacion.ciudad}, {publicacion.precio})'
-        cursor.execute(query)
-        # lo enviamos
-        conexion.commit()
-        # Cerramos conexion
-        conexion.close()
+        try:
+            #  Obtener cursor
+            cursor = conexion.cursor()
+            # Se crea la query
+            query = f'INSERT INTO publicaciones(fechinicial, fechfin, ciudad, precio, titulo, contenido) VALUES("{publicacion.fecha_inicial}", "{publicacion.fecha_final}", "{publicacion.ciudad}", "{publicacion.precio}", "{publicacion.titulo}", "{publicacion.contenido.id}")'
+            print(query)
+            cursor.execute(query)
+            # lo enviamos
+            conexion.commit()
+        finally:
+            # Cerramos conexion
+            conexion.close()
 
     if  not "usuario" in session:
         return {'mensaje':'La sesion caduco', 'statusCode':404}
@@ -242,7 +254,10 @@ def get_publicacion():
     publicacion = obtener_publicacion(request, contenido)
     guardar_publicacion(publicacion)
 
-
+    return jsonify({
+        'mensaje':"Se ha registrado con éxito la publicación",
+        "statusCode": 200
+    })
 
 # #########################
 # METODO :: PUT
@@ -304,6 +319,7 @@ def get_contenido_publicacion():
         query = f'UPDATE publicaciones SET fechinicial={publicacion.fecha_inicial}, fechfin={publicacion.fecha_final}, ciudad={publicacion.ciudad}, precio={publicacion.precio} WHERE id = {id} '
         cursor.execute(query)
         conexion.commit()
+        conexion.close()
 
 
     if  not "usuario" in session:

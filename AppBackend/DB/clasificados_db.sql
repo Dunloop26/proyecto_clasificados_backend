@@ -20,9 +20,9 @@ CREATE TABLE usuarios(
 CREATE TABLE publicaciones(
 	id INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
     fechinicial DATETIME,
+    fechfin DATETIME,
     ciudad CHAR(40),
     precio DOUBLE,
-    contacto CHAR(50),
     contenido INT,
     titulo CHAR(50),
     idusuario INT,
@@ -53,7 +53,4 @@ ALTER TABLE publicaciones
     
 ALTER TABLE imagenes
 	ADD FOREIGN KEY (idpublicacion) REFERENCES publicaciones(id);
-
-ALTER TABLE publicaciones
-ADD FOREIGN KEY (idusuario) REFERENCES contenido(id);
     
