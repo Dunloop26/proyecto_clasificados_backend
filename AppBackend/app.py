@@ -94,7 +94,7 @@ def get_login():
             session["usuario"] = correo
             session["id_usuario"] = id_usuario
 
-            return {'mensaje':'Logueado', 'statusCode': 200}
+            return {'mensaje':'Logueado','id_usuario':id_usuario, 'statusCode': 200}
         return {'mensaje':'Inicio de sesion incorrecto','statusCode': 404}
     return {'mensaje':'Usuario no registrado', 'statusCode': 404}
 
@@ -112,12 +112,14 @@ def get_signUp():
     def usuarioRegistrado(correo):
         # Crear conexion
         conexion = crear_conexion()
-        # Obtener cursor
-        cursor = conexion.cursor()
-        # Obtengo el usuario con el email que me entragan
-        cursor.execute(f'SELECT correo FROM usuarios WHERE correo="{correo}"')
-        resultado = cursor.fetchone() 
-        conexion.close()
+        try:
+            # Obtener cursor
+            cursor = conexion.cursor()
+            # Obtengo el usuario con el email que me entragan
+            cursor.execute(f'SELECT correo FROM usuarios WHERE correo="{correo}"')
+            resultado = cursor.fetchone() 
+        finally:
+            conexion.close()
         #  Obtengo los resultados
         #  Si obtenemos al menos un resultado
         return resultado and len(resultado) > 0
@@ -125,25 +127,33 @@ def get_signUp():
     def registrarUsuario(usuario: Usuario):
         # Crear conexion
         conexion = crear_conexion()
-        # Obtener cursor
-        cursor = conexion.cursor()
+        try:
+            # Obtener cursor
+            cursor = conexion.cursor()
 
-        # Encripto la contraseña para almacenarla en DB # Creo salt
-        salt = bcrypt.gensalt()
-        #  Obtengo el password en bytes
-        bytes_pwd = bytes(str(usuario.password), encoding='utf-8')
-        # creo el hast
-        # Se hace el decode para transformar bytes en string
-        # y poder guardarlos en la DB
-        hash_pwd = bcrypt.hashpw(bytes_pwd, salt).decode('utf8')
+            # Encripto la contraseña para almacenarla en DB # Creo salt
+            salt = bcrypt.gensalt()
+            #  Obtengo el password en bytes
+            bytes_pwd = bytes(str(usuario.password), encoding='utf-8')
+            # creo el hast
+            # Se hace el decode para transformar bytes en string
+            # y poder guardarlos en la DB
+            hash_pwd = bcrypt.hashpw(bytes_pwd, salt).decode('utf8')
 
+            # EJecutar el comando hacer insert a la DB
+            cursor.execute(f'INSERT INTO usuarios(nombres, apellidos, telefono, correo, passwrd) VALUES("{usuario.nombres}", "{usuario.apellidos}", "{usuario.celular}", "{usuario.correo}", "{hash_pwd}")')
+            # Hacer efectivo el registro
+            conexion.commit()
 
-        # EJecutar el comando hacer insert a la DB
-        cursor.execute(f'INSERT INTO usuarios(nombres, apellidos, telefono, correo, passwrd) VALUES("{usuario.nombres}", "{usuario.apellidos}", "{usuario.celular}", "{usuario.correo}", "{hash_pwd}")')
-        # Hacer efectivo el registro
-        conexion.commit()
-        #  Cerrar la conexion
-        conexion.close()
+            # Obtengo el ID del usuario ingresado
+            cursor.execute('SELECT LAST_INSERT_ID()')
+            resultado = cursor.fetchone()
+
+            # Registro el id del usuario
+            usuario.id = resultado[0]
+        finally:
+            #  Cerrar la conexion
+            conexion.close()
 
     def obtenerUsuario(request):
         # Se instancia la clase, para crear un nuevo usuario
@@ -165,7 +175,7 @@ def get_signUp():
     if usuarioRegistrado(usuario.correo):
         return jsonify({'mensaje':'El usuario ya esta registrado', 'statusCode': 404})
     registrarUsuario(usuario)
-    return jsonify({'mensaje':"signUp successful", 'statusCode': 200})
+    return jsonify({'mensaje':"signUp successful", "id_usuario":usuario.id, 'statusCode': 200})
     
 
 # API de obtener datos de publicacion
@@ -183,7 +193,7 @@ def get_publicacion():
         contenido.tipo_inmueble = request.json['tipo_inmueble']
         contenido.metros_cuadrados = request.json['metros_cuadrados']
         contenido.habitaciones = request.json['habitaciones']
-        contenido.banos = request.json['baños']
+        contenido.banos = request.json['banos']
         contenido.pisos = request.json['pisos']
         contenido.descripcion = request.json['descripcion_inmueble']
 
@@ -228,14 +238,14 @@ def get_publicacion():
         return publicacion
 
     # Actualizamos los datos recibidos a la DB
-    def guardar_publicacion(publicacion: Publicacion):
+    def guardar_publicacion(publicacion: Publicacion, id: int):
         # Crear conexion
         conexion = crear_conexion()
         try:
             #  Obtener cursor
             cursor = conexion.cursor()
             # Se crea la query
-            query = f'INSERT INTO publicaciones(fechinicial, fechfin, ciudad, precio, titulo, contenido) VALUES("{publicacion.fecha_inicial}", "{publicacion.fecha_final}", "{publicacion.ciudad}", "{publicacion.precio}", "{publicacion.titulo}", "{publicacion.contenido.id}")'
+            query = f'INSERT INTO publicaciones(fechinicial, fechfin, ciudad, precio, titulo, contenido, idusuario) VALUES("{publicacion.fecha_inicial}", "{publicacion.fecha_final}", "{publicacion.ciudad}", "{publicacion.precio}", "{publicacion.titulo}", "{publicacion.contenido.id}", "{id}")'
             print(query)
             cursor.execute(query)
             # lo enviamos
@@ -244,15 +254,24 @@ def get_publicacion():
             # Cerramos conexion
             conexion.close()
 
-    if  not "usuario" in session:
-        return {'mensaje':'La sesion caduco', 'statusCode':404}
+    # Obtengo el id del usuario
+    idusuario = request.json['id_usuario']
+
+    if not idusuario:
+        return jsonify({
+            'mensaje':'No se ha encontrado el id del usuario en la petición',
+            'statusCode': 400
+        })
+    # if  not "usuario" in session:
+        # return {'mensaje':'La sesion caduco', 'statusCode':404}
     # hacer insert a contenido
     contenido = get_contenido(request)
     guardar_contenido(contenido)
 
+
     # Hacer insert a publicacion
     publicacion = obtener_publicacion(request, contenido)
-    guardar_publicacion(publicacion)
+    guardar_publicacion(publicacion, idusuario)
 
     return jsonify({
         'mensaje':"Se ha registrado con éxito la publicación",
@@ -322,8 +341,8 @@ def get_contenido_publicacion():
         conexion.close()
 
 
-    if  not "usuario" in session:
-        return {'mensaje':'La sesion caduco', 'status':404}
+    # if  not "usuario" in session:
+        # return {'mensaje':'La sesion caduco', 'status':404}
     # UPDATE contenido
     contenido = get_contenido(request)
     id_contenido = request.json['id']
@@ -335,8 +354,11 @@ def get_contenido_publicacion():
 
     update_publicacion(id_publicacion,publicacion)
 
-
-
+@app.route('/api/v1/img', methods=['POST'])
+def post_img():
+    img = request.form['imageFile']
+    print(img)
+    return "ok"
 
 if __name__ == "__main__":
     app.run(debug=True,port=5000)

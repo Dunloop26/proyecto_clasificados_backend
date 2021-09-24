@@ -4,6 +4,7 @@
 class Usuario():
 
     def __init__(self) :    
+        self.id = -1
         self.nombres = ""
         self.apellidos = ""
         self.celular = ""
