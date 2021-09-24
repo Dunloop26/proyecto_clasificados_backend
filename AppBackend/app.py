@@ -180,12 +180,12 @@ def get_publicacion():
         contenido = Contenido()
 
         
-        contenido.tipo_inmueble = request.json['tipo inmueble']
-        contenido.metros_cuadrados = request.json['metros cuadrados']
+        contenido.tipo_inmueble = request.json['tipo_inmueble']
+        contenido.metros_cuadrados = request.json['metros_cuadrados']
         contenido.habitaciones = request.json['habitaciones']
         contenido.banos = request.json['baños']
         contenido.pisos = request.json['pisos']
-        contenido.descripcion = request.json['descripcion inmueble']
+        contenido.descripcion = request.json['descripcion_inmueble']
 
         return contenido
 
@@ -206,13 +206,13 @@ def get_publicacion():
 
 
     # Se crea funcion para obtener los datos de la publicacion
-    def obtener_publicacion(request):
+    def obtener_publicacion(request, contenido):
         # Intanciamos Publicacion
-        publicacion = Publicacion()
+        publicacion = Publicacion(contenido)
 
         publicacion.titulo = request.json['titulo']
-        publicacion.fecha_inicial = request.json['fecha inicial']
-        publicacion.fecha_final = request.json['fecha final']
+        publicacion.fecha_inicial = request.json['fecha_inicial']
+        publicacion.fecha_final = request.json['fecha_final']
         publicacion.ciudad = request.json['ciudad']
         publicacion.precio = request.json['precio']
 
@@ -236,12 +236,10 @@ def get_publicacion():
         return {'mensaje':'La sesion caduco', 'statusCode':404}
     # hacer insert a contenido
     contenido = get_contenido(request)
-
     guardar_contenido(contenido)
 
     # Hacer insert a publicacion
-    publicacion = obtener_publicacion(request)
-
+    publicacion = obtener_publicacion(request, contenido)
     guardar_publicacion(publicacion)
 
 

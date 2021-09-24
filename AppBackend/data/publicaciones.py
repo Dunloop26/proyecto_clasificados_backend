@@ -3,13 +3,6 @@
 from .contenido import Contenido
 from data import contenido
 
-
-
-
-contenido = Contenido()
-
-
-
 # Se creara un objeto para el anuncio
 # Esta clase define los campos que tendra la publicación}
 
